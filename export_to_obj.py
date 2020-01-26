@@ -1,4 +1,4 @@
-from old_files.slam_map import OrbSlamMap
+from slam_map import OrbSlamMap
 import io
 import random
 import json

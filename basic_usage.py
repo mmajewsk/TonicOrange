@@ -1,9 +1,9 @@
 import json
-import sys
 import cv2
 import os
 import orbslam2
 import argparse
+from pathlib import Path
 
 def load_images(path_to_association):
     rgb_filenames = []
@@ -19,6 +19,24 @@ def load_images(path_to_association):
                 timestamps.append(float(t))
     return rgb_filenames, timestamps
 
+class MapDump:
+    def __init__(self, dir_path, dump_name):
+        self.dir_path = dir_path
+        self.dump_name = dump_name
+        if not os.path.exists(self.dir_path):
+            os.mkdir(self.dir_path)
+
+    def save_osmap(self, slam):
+        slam.map_save( str(self.dir_path/self.dump_name), False)
+
+    def save_assoc(self, assoc_dict):
+        # @TODO this line below shows how the path should be corrected
+        # brought an issue here https://github.com/AlejandroSilvestri/osmap/issues/15
+        #with open(str(self.dir_path/'assoc.json'), 'w') as f:
+        with open(str('assoc.json'), 'w') as f:
+            josnstring = json.dumps(assoc_dict)
+            f.write(josnstring)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Usage: ./orbslam_mono_tum path_to_vocabulary path_to_settings path_to_sequence')
@@ -26,29 +44,32 @@ if __name__ == '__main__':
                                            "E.g: ORB_SLAM/Vocabulary/ORBvoc.txt")
     parser.add_argument('settings_path', help="A path to configurational file, E.g: TUM.yaml")
     parser.add_argument('images_path', help="Path to the folder with images")
-    parser.add_argument('save_name', help="a path name to save map to")
-    parser.add_argument('--frame_start', type=int, default=0, help="Number of starting frame")
+    parser.add_argument('--save_map', type=str, default=None, help="a path name to save map to")
+    parser.add_argument('--load_map', type=str, default=None, help="path of the map to be loaded")
+    parser.add_argument('--start', type=int, default=0, help="Number of starting frame")
+    parser.add_argument('--end', type=int, default=0, help="Number of ending frame")
     args = parser.parse_args()
     vocab_path = args.vocab_path
     settings_path = args.settings_path
     filenames, timestamps = load_images(args.images_path)
-    data_tuple = [(cv2.imread(os.path.join(sys.argv[3],filename)), float(timestamp)) for filename, timestamp in zip(filenames, timestamps)]
+    data_tuple = [(cv2.imread(os.path.join(args.images_path,filename)), float(timestamp)) for filename, timestamp in zip(filenames, timestamps)]
     slam = orbslam2.System(vocab_path, settings_path, orbslam2.Sensor.MONOCULAR)
     slam.set_use_viewer(True)
     slam.initialize()
     slam.osmap_init()
-    frameno=args.frame_start
-    first_datapoint = data_tuple[frameno]
+    first_datapoint = data_tuple[args.start]
+    dump = MapDump(Path(args.save_map), Path("initial_tests"))
     slam.process_image_mono(first_datapoint[0], first_datapoint[1])
-    #slam.map_load(sys.argv[4]+".yaml", False, False)
-    #old_timestamps = [kf['mTimeStamp'] for kf in slam.get_keyframe_list()]
-    #old_ids = [kf['mnId'] for kf in slam.get_keyframe_list()]
     new_ids = []
-    for i, (im, ts) in enumerate(data_tuple[frameno+1:]):
+    if args.load_map is not None:
+        slam.map_load(args.load_map+"/initial_tests.yaml", False, False)
+        old_timestamps = [kf['mTimeStamp'] for kf in slam.get_keyframe_list()]
+        new_ids = [kf['mnId'] for kf in slam.get_keyframe_list()]
+    for i, (im, ts) in enumerate(data_tuple[args.start+1:args.end]):
         slam.process_image_mono(im, ts)
     for skf in slam.get_keyframe_list():
         fil_ind = timestamps.index(skf['mTimeStamp'])
         new_ids.append((skf['mnId'], skf['mTimeStamp'], filenames[fil_ind]))
-    slam.map_save(args.save_name+"proc_2D", False)
-    with open('proc2_assoc_im_kf.json', 'w') as f:
-        json.dump( dict(keyframes=new_ids, data_path=args.images_path, map_name=parser.save_name), f)
+    if args.save_map is not None:
+        dump.save_osmap(slam)
+        dump.save_assoc(dict(keyframes=new_ids, data_path=args.images_path, map_name=args.save_map))

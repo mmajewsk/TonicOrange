@@ -41,3 +41,13 @@ optional arguments:
                         Number of starting frame
 
 ```
+
+## Developer journal
+
+###26.01.2020
+I need to add osmap for python to be generated.
+Tt seems that I have lost changes done to the libraries.
+One thing that i need to get back is get_keyframe_list, that returns dict of mnid and timestamp
+Brought up an issue here:
+https://github.com/AlejandroSilvestri/osmap/issues/15
+Osmap messes up path management.
