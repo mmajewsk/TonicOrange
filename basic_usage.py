@@ -39,6 +39,10 @@ class MapDump:
 
 
 if __name__ == '__main__':
+    """
+    examplary arguments:
+        /home/mwm/repositories/slam_dunk/builds/data/ORBvoc.txt /home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml /home/mwm/Desktop/datadumps/01-07-19-drive-v1_22/ --start 250 --end 500
+    """
     parser = argparse.ArgumentParser(description='Usage: ./orbslam_mono_tum path_to_vocabulary path_to_settings path_to_sequence')
     parser.add_argument('vocab_path', help="A path to voabulary file from orbslam. \n"
                                            "E.g: ORB_SLAM/Vocabulary/ORBvoc.txt")
@@ -47,7 +51,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_map', type=str, default=None, help="a path name to save map to")
     parser.add_argument('--load_map', type=str, default=None, help="path of the map to be loaded")
     parser.add_argument('--start', type=int, default=0, help="Number of starting frame")
-    parser.add_argument('--end', type=int, default=0, help="Number of ending frame")
+    parser.add_argument('--end', type=int, default=None, help="Number of ending frame")
     args = parser.parse_args()
     vocab_path = args.vocab_path
     settings_path = args.settings_path
@@ -58,9 +62,12 @@ if __name__ == '__main__':
     slam.initialize()
     slam.osmap_init()
     first_datapoint = data_tuple[args.start]
-    dump = MapDump(Path(args.save_map), Path("initial_tests"))
     slam.process_image_mono(first_datapoint[0], first_datapoint[1])
     new_ids = []
+    if args.end is None:
+        end = len(data_tuple) -1
+    elif abs(args.start -args.end) < 10:
+        print("WARGNING!!! the number of usable frames is less than 10!")
     if args.load_map is not None:
         slam.map_load(args.load_map+"/initial_tests.yaml", False, False)
         old_timestamps = [kf['mTimeStamp'] for kf in slam.get_keyframe_list()]
@@ -71,5 +78,6 @@ if __name__ == '__main__':
         fil_ind = timestamps.index(skf['mTimeStamp'])
         new_ids.append((skf['mnId'], skf['mTimeStamp'], filenames[fil_ind]))
     if args.save_map is not None:
+        dump = MapDump(Path(args.save_map), Path("initial_tests"))
         dump.save_osmap(slam)
         dump.save_assoc(dict(keyframes=new_ids, data_path=args.images_path, map_name=args.save_map))
