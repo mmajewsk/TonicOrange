@@ -19,6 +19,11 @@ def load_images(path_to_association):
                 timestamps.append(float(t))
     return rgb_filenames, timestamps
 
+
+def read_folder_as_tuples(images_path):
+    filenames, timestamps = load_images(images_path)
+    return [(cv2.imread(os.path.join(images_path, filename)), float(timestamp)) for filename, timestamp in zip(filenames, timestamps)]
+
 class MapDump:
     def __init__(self, dir_path, dump_name):
         self.dir_path = dir_path
@@ -55,12 +60,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     vocab_path = args.vocab_path
     settings_path = args.settings_path
-    filenames, timestamps = load_images(args.images_path)
-    data_tuple = [(cv2.imread(os.path.join(args.images_path,filename)), float(timestamp)) for filename, timestamp in zip(filenames, timestamps)]
+    data_tuple = read_folder_as_tuples(args.images_path)
     slam = orbslam2.System(vocab_path, settings_path, orbslam2.Sensor.MONOCULAR)
     slam.set_use_viewer(True)
     slam.initialize()
     slam.osmap_init()
+    filenames, timestamps = load_images(args.images_path)
+    #slam.activate_localisation_only()
     first_datapoint = data_tuple[args.start]
     slam.process_image_mono(first_datapoint[0], first_datapoint[1])
     new_ids = []
@@ -68,11 +74,13 @@ if __name__ == '__main__':
         end = len(data_tuple) -1
     elif abs(args.start -args.end) < 10:
         print("WARGNING!!! the number of usable frames is less than 10!")
+    else:
+        end = args.end
     if args.load_map is not None:
         slam.map_load(args.load_map+"/initial_tests.yaml", False, False)
         old_timestamps = [kf['mTimeStamp'] for kf in slam.get_keyframe_list()]
         new_ids = [kf['mnId'] for kf in slam.get_keyframe_list()]
-    for i, (im, ts) in enumerate(data_tuple[args.start+1:args.end]):
+    for i, (im, ts) in enumerate(data_tuple[args.start+1:end]):
         slam.process_image_mono(im, ts)
     for skf in slam.get_keyframe_list():
         fil_ind = timestamps.index(skf['mTimeStamp'])

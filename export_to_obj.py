@@ -1,4 +1,4 @@
-from slam_map import OrbSlamMap
+from slam_map import OsmapData
 import io
 import random
 import json
@@ -403,10 +403,10 @@ class WavefrontObjWriter:
 
 if __name__=='__main__':
     calibration_data_path = '/old_files/calib-wide.json'
-    my_osmap= OrbSlamMap()
+    my_osmap= OsmapData()
     map_path = '/22_for_recoproc_2D.yaml'
     map_path = pathlib.Path(map_path)
-    my_osmap.read_map(map_path.parent, map_path.stem)
+    my_osmap.from_map_path(map_path.parent, map_path.stem)
     mtx, distCoeff = read_calibration(calibration_data_path)
     data_path = pathlib.Path('/home/mwm/Desktop/datadumps/01-07-19-drive-v1_22')
     assoc_path = '/proc2_assoc_im_kf.json'

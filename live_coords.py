@@ -3,8 +3,7 @@ import cv2
 import os
 import orbslam2
 import argparse
-from pathlib import Path
-from basic_usage import load_images
+from basic_usage import load_images, read_folder_as_tuples
 
 
 if __name__ == '__main__':
@@ -26,8 +25,7 @@ if __name__ == '__main__':
     vocab_path = args.vocab_path
     settings_path = args.settings_path
     filenames, timestamps = load_images(args.images_path)
-    data_tuple = [(cv2.imread(os.path.join(args.images_path, filename)), float(timestamp)) for filename, timestamp in
-                  zip(filenames, timestamps)]
+    data_tuple = read_folder_as_tuples(args.images_path)
     slam = orbslam2.System(vocab_path, settings_path, orbslam2.Sensor.MONOCULAR)
     slam.set_use_viewer(True)
     slam.initialize()

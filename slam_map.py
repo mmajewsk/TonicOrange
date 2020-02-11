@@ -1,5 +1,6 @@
 import numpy as np
 import osmap_pb2
+import pathlib
 
 
 class KeyFrame:
@@ -28,16 +29,22 @@ def read_map_data(main_path, filename, data_type):
             _data.ParseFromString(a.read())
     return _data
 
-class OrbSlamMap:
-    def __init__(self):
-        self.key_frames = None
-        self.map_points = None
-        self.features = None
+class OsmapData:
+    def __init__(self, key_frame, map_points, features, map_path=None, map_name=None):
+        self.key_frames = key_frame
+        self.map_points = map_points
+        self.features = features
+        self.map_path = map_path
+        self.map_name = map_name
 
-    def read_map(self, path, map_name):
-        self.key_frames = read_map_data(path, map_name, 'keyframes')
-        self.map_points = read_map_data(path, map_name, 'mappoints')
-        self.features = read_map_data(path, map_name, 'features')
+    @staticmethod
+    def from_map_path( map_path):
+        map_path = pathlib.Path(map_path)
+        path, map_name = map_path.parent, map_path.stem
+        key_frames = read_map_data(path, map_name, 'keyframes')
+        map_points = read_map_data(path, map_name, 'mappoints')
+        features = read_map_data(path, map_name, 'features')
+        return OsmapData(key_frames, map_points, features, map_path=path, map_name=map_name)
 
     def keyframe_to_pose(self, kf):
         pose = list(kf.pose.element)
@@ -45,6 +52,12 @@ class OrbSlamMap:
         pose_base = np.eye(4)
         pose_base[:3] = reshaped_pose
         return pose_base
+
+    def id_and_pose(self):
+        return [(kf.id, self.keyframe_to_pose(kf)) for kf in self.key_frames.keyframe ]
+
+    def poses_reshaped(self):
+        return [self.keyframe_to_pose(kf) for kf in self.key_frames.keyframe]
 
     def paint_data(self):
         poses = []
