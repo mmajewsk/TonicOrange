@@ -1,7 +1,10 @@
 #Tonic Orange
 
 This repository contains scripts and source code used to create
-map with [ORB_SLAM2]().
+map with [ORB_SLAM2](https://github.com/mmajewsk/ORB_SLAM2), [osmap](https://github.com/mmajewsk/osmap), [ORB_SLAM2](https://github.com/mmajewsk/ORB_SLAM2-PythonBindings).
+Im using my [Tonic](https://github.com/mmajewsk/Tonic) project to acquire images and data, and then I can process it 
+to be able to create map of the environment and also to localise in that map.
+
 
 ## Dependencies
 
@@ -9,15 +12,20 @@ Those scripts are dependant on some custom versions of some libraries.
 You should use this repo [TonicSlamDunk](https://github.com/mmajewsk/TonicSlamDunk) to install them.
 
 You can use:
- - **install.sh** - for ubuntu (should be ok on 16.04)
+ - **install.sh** - for ubuntu (should be ok on 16.04 and 18.04)
  - or you can use **docker** image that i have prepared [mwmajewsk/tonic_slam_dunk](https://hub.docker.com/repository/docker/mwmajewsk/tonic_slam_dunk).
  
- 
-
 ## basic_usage.py
 
+![](https://imgur.com/oA3ERWN.gif)
+
+This script can: 
+ - create new ORB_SLAM2 map from images and write it to file
+ - read ORB_SLAM2 map from file and extend it with additional data from new set of images, and then save it to file
+
+Parameters:
 - **vocab_path** this vocabulary file needed by OrbSlam2
-- **settings_path**  - this is settings fiel needed by the OrbSlam2. 
+- **settings_path**  - this is settings file needed by the OrbSlam2. 
 The file contains settings for the camera and its callibration.
 - **images_path** - path to folder with images
 - **save_name** - where to save the map
@@ -41,6 +49,12 @@ optional arguments:
                         Number of starting frame
 
 ```
+
+## live_coords.py
+@TODO
+
+## direction_finding.py
+@TODO
 
 ## Developer journal
 
