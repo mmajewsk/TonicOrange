@@ -9,8 +9,13 @@ import pathlib
 from mapper import Pose3Dto2D, transform
 from slam_map import OsmapData
 from simple_pid import PID
-from tonic import Tonic
-
+import sys
+import numpy as np
+from PyQt5.QtCore import *
+from clients import ClientSink, QTVideoClient, QTSteeringMotor
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+import yaml
 
 class TonicMock:
     def __init__(self, images_path, start=0, stop=None):
@@ -66,7 +71,7 @@ class Navigator:
         for checkpoint_filename in filenames_list:
             if checkpoint_filename not in assoc_filenames:
                 raise ValueError("checkpoint_filename was not found in keyframes")
-        id_and_pose = {id: pose for id, pose in my_osmap.id_and_pose()}
+        id_and_pose = {id: pose for id, pose in orb_slam_map.id_and_pose()}
         checkpoints = deque()
         for checkpoint_filename in filenames_list:
             checkpoint_keyframe_id = assoc_filenames[checkpoint_filename]
@@ -128,11 +133,11 @@ class DriverMock:
 
 
 class Driver:
-    def __init__(self, tonic: Tonic):
+    def __init__(self, tonic):
         self.tonic = tonic
         self.pid = PID(5,1.0,1.0,setpoint=0)
-        self.pid.output_limits = [0,5]
-        self.base_speed = 12
+        self.pid.output_limits = [0,10]
+        self.base_speed = 15
 
     def calculate_steering(self, current_pose2D, destination2D):
         (x1, y1), phi1 = current_pose2D
@@ -148,7 +153,6 @@ class Driver:
         left_motor = self.base_speed + output
         right_motor = self.base_speed - output
         self.tonic.steer_motors(dict(left=left_motor, right=right_motor))
-        print(output)
 
     def drive(self, current_pose2D, destination2D):
         if current_pose2D is not None:
@@ -160,49 +164,90 @@ class Driver:
     def try_orient(self):
         pass
 
-if __name__=="__main__":
-    vocab_path = "/home/mwm/repositories/slam_dunk/builds/data/ORBvoc.txt"
-    settings_path = "/home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml" #"./assets/settings/TUM-MINE-wide.yaml "
-    images_path = "/home/mwm/repositories/Tonic/data_intake4/02_03_2020_hackerspace_v0.1"
-    checkpoints_file = '/home/mwm/repositories/TonicData/02_03_2020_hackerspace_v0.1_m0.1/checkpoints.txt'
-    osmap_path = '/home/mwm/repositories/TonicData/02_03_2020_hackerspace_v0.1_m0.1/map/initial_tests.yaml'
-    tonic_settings = '/home/mwm/repositories/Tonic/src/pc/settings.yaml'
-    "--start 250 --end 500"
-    mock = False
-    if mock:
-        tonic = TonicMock(images_path,start=210)
-    else:
-        tonic = Tonic(tonic_settings)
-        tonic.connect_video()
-    print("wait for camera to start")
-    image = None
-    while image is None:
-        time.sleep(2)
-        initialising_data = tonic.image_now()
-        image = initialising_data[0]
-        print(image)
-    my_osmap = OsmapData.from_map_path(osmap_path)
-    # this below is needed to calculate the 2D surface
-    transformator = Transform3Dto2D(my_osmap)
-    navigator = Navigator.from_filenames(checkpoints_file, orb_slam_map=my_osmap)
-    navigator.set_smart_threshold()
-    localisator = Localisator(vocab_path=vocab_path,settings_path=settings_path)
-    localisator.initialise(initialising_data, my_osmap)
-    #if mock:
-    #    driver = DriverMock(tonic)
-    #else:
-    driver = Driver(tonic)
-    for destination in navigator.go():
-        data = tonic.image_now()
+class Controller():
+    def __init__(self,
+                 client_sink: ClientSink = None,
+                 ):
+        self.client_sink = client_sink
+        self.frame = None
+
+
+    def connect_video(self):
+        """Initialize camera.
+        """
+        self.client_sink.start_video()
+        self.client_sink.connect_to_video(self.add_image)
+
+    def add_image(self, frame):
+        self.timestamp = frame[1]
+        self.frame = frame[0]
+
+class MainApp(QWidget):
+    def __init__(self):
+        QWidget.__init__(self)
+        vocab_path = "/home/mwm/repositories/slam_dunk/builds/data/ORBvoc.txt"
+        settings_path = "/home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml" #"./assets/settings/TUM-MINE-wide.yaml "
+        images_path = "/home/mwm/repositories/Tonic/data_intake4/02_03_2020_hackerspace_v0.1"
+        checkpoints_file = '/home/mwm/repositories/TonicData/02_03_2020_hackerspace_v0.1_m0.1/checkpoints.txt'
+        osmap_path = '/home/mwm/repositories/TonicData/02_03_2020_hackerspace_v0.1_m0.1/map/initial_tests.yaml'
+        tonic_settings = '/home/mwm/repositories/Tonic/src/pc/settings.yaml'
+        "--start 250 --end 500"
+
+        self.setup_tonic_stuff(tonic_settings)
+
+        print("wait for camera to start")
+        image = None
+        while image is None:
+            initialising_data =self.image_now()
+            image = initialising_data[0]
+            print(image)
+        self.my_osmap = OsmapData.from_map_path(osmap_path)
+        # this below is needed to calculate the 2D surface
+        self.transformator = Transform3Dto2D(self.my_osmap)
+        self.navigator = Navigator.from_filenames(checkpoints_file, orb_slam_map=self.my_osmap)
+        self.navigator.set_smart_threshold()
+        self.localisator = Localisator(vocab_path=vocab_path,settings_path=settings_path)
+        self.localisator.initialise(initialising_data, self.my_osmap)
+        self.destination_iterator = self.navigator.go()
+        self.driver = Driver(self)
+
+
+
+    def setup_tonic_stuff(self, settings_file):
+        settings = yaml.load(open(settings_file, 'rb'))
+        server_ip = settings['server']['ip']
+        video_size = settings['hardware']['camera']['image']['shape'][:2]
+        video_port = settings['server']['video']['port']
+        steering_port = settings['server']['steering']['port']
+        video_client = QTVideoClient(server_adress=(server_ip, video_port), video_size=video_size)
+        steering_client = QTSteeringMotor(server_adress=(server_ip, steering_port))
+        self.client_sink = ClientSink(
+            video_client=video_client,
+            steering_client=steering_client
+        )
+        self.steering_commands = None
+
+    def image_now(self):
+        return self.image, self.timestamp
+
+    def go(self):
+        destination = next(self.destination_iterator)
+        data = self.tonic.image_now()
         current_im, ts = data
-        pose3D = localisator.localise(data)
+        print("there")
+        print(ts)
+        pose3D = self.localisator.localise(data)
         if pose3D is not None:
-            current_pose2D = transformator.transform(pose3D)
+            current_pose2D = self.transformator.transform(pose3D)
         else:
             current_pose2D = None
-        destination2D = transformator.transform(destination)
-        driver.drive(current_pose2D, destination2D)
-        time.sleep(0.1)
-        tonic.steer_motors({'left':0,'right':0})
-        time.sleep(0.3)
-        navigator.refresh_direction(pose3D)
+        destination2D = self.transformator.transform(destination)
+        self.driver.drive(current_pose2D, destination2D)
+        self.navigator.refresh_direction(pose3D)
+
+
+if __name__=="__main__":
+    app = QApplication(sys.argv)
+    window = MainApp()
+    window.show()
+    sys.exit(app.exec_())

@@ -65,3 +65,7 @@ One thing that i need to get back is get_keyframe_list, that returns dict of mni
 Brought up an issue here:
 https://github.com/AlejandroSilvestri/osmap/issues/15
 Osmap messes up path management.
+
+
+### 03.06.2020
+So i created a mock for video streeming, I remember having problems with using both path finding andstreaming.
