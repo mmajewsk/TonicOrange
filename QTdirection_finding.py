@@ -170,7 +170,7 @@ class Controller():
                  ):
         self.client_sink = client_sink
         self.frame = None
-
+        self.timestamp = None
 
     def connect_video(self):
         """Initialize camera.
@@ -190,7 +190,7 @@ class MainApp(QWidget):
         images_path = "/home/mwm/repositories/Tonic/data_intake4/02_03_2020_hackerspace_v0.1"
         checkpoints_file = '/home/mwm/repositories/TonicData/02_03_2020_hackerspace_v0.1_m0.1/checkpoints.txt'
         osmap_path = '/home/mwm/repositories/TonicData/02_03_2020_hackerspace_v0.1_m0.1/map/initial_tests.yaml'
-        tonic_settings = '/home/mwm/repositories/Tonic/src/pc/settings.yaml'
+        tonic_settings = '/home/mwm/repositories/Tonic/src/pc/mock_settings.yaml'
         "--start 250 --end 500"
 
         self.setup_tonic_stuff(tonic_settings)
@@ -201,6 +201,7 @@ class MainApp(QWidget):
             initialising_data =self.image_now()
             image = initialising_data[0]
             print(image)
+            time.sleep(1)
         self.my_osmap = OsmapData.from_map_path(osmap_path)
         # this below is needed to calculate the 2D surface
         self.transformator = Transform3Dto2D(self.my_osmap)
@@ -226,9 +227,11 @@ class MainApp(QWidget):
             steering_client=steering_client
         )
         self.steering_commands = None
+        self.controller = Controller(client_sink=self.client_sink)
+        self.controller.connect_video()
 
     def image_now(self):
-        return self.image, self.timestamp
+        return self.controller.frame, self.controller.timestamp
 
     def go(self):
         destination = next(self.destination_iterator)

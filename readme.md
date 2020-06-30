@@ -1,7 +1,4 @@
-#Tonic Orange
-
-This repository contains scripts and source code used to create
-map with [ORB_SLAM2](https://github.com/mmajewsk/ORB_SLAM2), [osmap](https://github.com/mmajewsk/osmap), [ORB_SLAM2](https://github.com/mmajewsk/ORB_SLAM2-PythonBindings).
+This repository contains scripts and source code used to create map with [ORB_SLAM2](https://github.com/mmajewsk/ORB_SLAM2), [osmap](https://github.com/mmajewsk/osmap), [ORB_SLAM2](https://github.com/mmajewsk/ORB_SLAM2-PythonBindings).
 Im using my [Tonic](https://github.com/mmajewsk/Tonic) project to acquire images and data, and then I can process it 
 to be able to create map of the environment and also to localise in that map.
 
@@ -59,6 +56,7 @@ optional arguments:
 ## Developer journal
 
 ###26.01.2020
+
 I need to add osmap for python to be generated.
 Tt seems that I have lost changes done to the libraries.
 One thing that i need to get back is get_keyframe_list, that returns dict of mnid and timestamp
@@ -69,3 +67,13 @@ Osmap messes up path management.
 
 ### 03.06.2020
 So i created a mock for video streeming, I remember having problems with using both path finding andstreaming.
+
+### 22.06.2020
+
+Scripts are running as they should. lets see again where's the problem.
+So i added an possiblity of writing a log to direction finding.
+
+### 30.06.2020
+
+I added a DumbDriver in `direction_finding.py` Its not finished, todos in method
+`direction_finding.py:238`. Do them.
