@@ -201,8 +201,10 @@ class DriverDumb:
         self.base_speed = 3
         self.turning = False
         self.approaching = False
+        self.resting = False
         self.action_time_steps = 0
         self.navigator_queue = Queue()
+        self.how_to_turn = None
 
     def check_orientation(self, current_pose2D, destination2D):
         desired_angle = calculate_desired_angle(current_pose2D, destination2D)
@@ -214,10 +216,9 @@ class DriverDumb:
 
     def check_if_continue_action(self):
         self.action_time_steps -= 1
-        return self.action_time_steps <= 0
+        return self.action_time_steps >= 0
 
-    def turn(self, current_pose2D, destination2D):
-        desired_angle = calculate_desired_angle(current_pose2D, destination2D)
+    def turn(self, desired_angle):
         if desired_angle <= 0:
             logger.debug("Turning left")
             data = dict(left=self.base_speed, right=17)
@@ -232,34 +233,56 @@ class DriverDumb:
         data = dict(left=13, right=13)
         logger.debug(data)
         self.tonic.steer_motors(data)
-        
+
+    def process_resting(self):
+        self.resting = self.check_if_continue_action()
+        if self.resting:
+            logger.debug("Resting {}".format(self.action_time_steps))
 
     def drive(self, current_pose2D, destination2D):
-        # @TODO make it "rest" sometime
+        if self.resting:
+            logger.debug("resting")
+            self.process_resting()
+            return
         if not self.navigator_queue.empty():
             message = self.navigator_queue.get()
+            logger.debug("Got navigator message: {}".format(message))
             #@TODO handle finish message
             self.approaching = False
             self.turning = False
             self.at_checkpoint = True
         if self.turning:
+            logger.debug("turning {}".format(self.action_time_steps))
             self.turning = self.check_if_continue_action()
             if self.turning:
                 # @TODO make it not to calculate this thing every time but
                 # make it calculated once and then repeated as action
-                self.turn(current_pose2D, destination2D)
-                return
+                #
+                logger.debug("turning more")
+                if self.how_to_turn is None:
+                     self.how_to_turn = calculate_desired_angle(current_pose2D, destination2D)
+                self.turn(self.how_to_turn)
+            else:
+                self.resting = True
+                self.how_to_turn = None
+                self.action_time_steps = 15
+            return
         if self.approaching:
+            logger.debug("approaching")
             self.approaching = self.check_if_continue_action()
             if self.approaching:
                 self.go_straight()
-                return
+            else:
+                self.resting = True
+                self.action_time_steps = 15
+            return
         if current_pose2D is not None:
             oriented = self.check_orientation(current_pose2D, destination2D)
             if oriented:
                 self.approaching = True
             else:
                 self.turning = True
+            self.action_time_steps = 15
         else:
             self.try_orient()
 
