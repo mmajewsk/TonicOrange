@@ -77,3 +77,68 @@ So i added an possiblity of writing a log to direction finding.
 
 I added a DumbDriver in `direction_finding.py` Its not finished, todos in method
 `direction_finding.py:238`. Do them.
+
+### 09.07.2020
+\
+Use 
+```
+sudo lsof -i:8080
+```
+
+To find busy port
+test in hackerspace
+the batteries seems to be ok
+trying to record some paths in hardroom
+
+First run Tonic/src/pc:
+
+```
+python run.py -v -s --dump_video ~/repositories/Tonic/data_intake4/09_07_2020_hackerspace_v0.01
+```
+
+to take data, then create rgb file with
+
+```
+python tools.py ~/repositories/Tonic/data_intake4/09_07_2020_hackerspace_v0.01/
+```
+
+
+```python basic_usage.py /home/mwm/repositories/slam_dunk/builds/data/ORBvoc.txt /home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml /home/mwm/repositories/Tonic/data_intake4/17_07_2020_hackerspace_v0.01/```
+then use the algorithm to create map
+
+### 17.07.2020
+
+After the battery change, and added battery monitor, I will try to run
+everything again. 
+
+`python basic_usage.py /home/mwm/repositories/slam_dunk/builds/data/ORBvoc.txt /home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml /home/mwm/repositories/Tonic/data_intake4/17_07_2020_hackerspace_v0.03/ --start 250 --end 400 `
+
+
+doing stuff at home:
+
+So there is aproblem with steering it seems stuck or doeasnt go in "rest" state
+(no speed) at all.
+
+### 19.07.2020
+
+For whatever the reason, the image in she slam is not getting there fast enough.
+This might be due to the way that it ic received, or slowness of the SLAM.
+
+### 23.07.2020
+
+Attempting to profile this problem with mock.
+
+### 24.07.2020
+
+All the profilers are failing me, because of the exit bug.
+So the get_current_pose is the choke-point.
+    I think it's beacuse of the conversion to opencv mat.
+Ok it is not. Thats a mess.
+I need to compare basic usage wiht path finder.
+Problem solved, mainly those were mine sleeps (usleep in python wrapper!).
+Sort this mess out, and commit this later.
+
+### 26.07.2020
+
+The Tonic/pathfinder branch needs merge in the future, also needs to be hcecked
+out against the code on the device.

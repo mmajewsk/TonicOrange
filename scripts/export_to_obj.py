@@ -1,4 +1,4 @@
-from slam_map import OsmapData
+from ..slam_map import OsmapData
 import io
 import random
 import json
