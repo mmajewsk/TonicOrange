@@ -5,6 +5,8 @@ import time
 import numpy as np
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 class Navigator:
     def __init__(self, checkpoints: deque, distance_threshold=None):

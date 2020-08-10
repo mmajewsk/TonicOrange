@@ -1,3 +1,4 @@
+
 from tonic import Tonic
 from queue import Queue
 import numpy as np
@@ -7,15 +8,7 @@ import logging
 from common.pose import calculate_desired_angle
 
 logger = logging.getLogger(__name__)
-
-class Action:
-    def __init__(self, action_type=None, t=0.0):
-        self.t = t
-        self.action_type = action_type
-
-class State:
-    def __init__(self):
-        pass
+logger.setLevel(logging.DEBUG)
 
 class Driver:
     def __init__(self, tonic: Tonic):
@@ -62,6 +55,14 @@ class DriverDumb:
         self.how_to_turn = None
         self.turning_motor_speed = 20
         self.no_pose_counter = 0
+        self.current_steering_data = None
+        self.current_move_type = None
+        self.a_t = 0
+        self.moving_keys = ['orienting', 'approaching', 'turning_left',  'turning_right', 'resting']
+        self.non_moving_keys = ['no_pose', ' at_checkpoint']
+        self.states = {}
+        for k in self.moving_keys+self.non_moving_keys:
+            self.states[k] = False
 
     def check_orientation(self, current_pose2D, destination2D):
         desired_angle = calculate_desired_angle(current_pose2D, destination2D)
@@ -71,104 +72,86 @@ class DriverDumb:
         else:
             return False
 
-    def check_if_continue_action(self):
-        self.action_time_steps -= 1
-        return self.action_time_steps >= 0
-
-    def turn(self, desired_angle):
-        if desired_angle <= 0:
-            logger.debug("Turning left")
-            data = dict(left=self.base_speed, right=self.turning_motor_speed)
-        else:
-            logger.debug("Turning right")
-            data = dict(left=self.turning_motor_speed, right=self.base_speed)
-        logger.debug(data)
-        self.tonic.steer_motors(data)
-
-    def go_straight(self):
-        logger.debug("Going straight")
-        data = dict(left=15, right=15)
-        logger.debug(data)
-        self.tonic.steer_motors(data)
-
-    def process_resting(self):
-        self.resting = self.check_if_continue_action()
-        if self.resting:
-            data = dict(left=0, right=0)
-            self.tonic.steer_motors(data)
-            logger.debug("Resting {}".format(self.action_time_steps))
+    def reset_states(self):
+        for k in self.states:
+            self.states[k] = False
 
     def assign_state(self, current_pose2D, destination2D):
+        self.reset_states()
         if current_pose2D is None:
             logger.debug("No pose!!!")
-            self.state['no_pose'].react()
-            self.no_pose_counter += 1
-            self.resting = True
-            self.how_to_turn = None
-            self.turning = False
-            self.action_time_steps = 15
-        else:
-            self.no_pose_counter = 0
+            self.states['no_pose'] = True
+            self.states['orienting'] = True
 
-    def do_action(self):
-        pass
-
-    def drive(self, current_pose2D, destination2D):
-        time.sleep(0.05)
-        self.assign_state()
-        self.do_action()
-
-        if self.resting and self.no_pose_counter > 3:
-            logger.debug("resting")
-            self.process_resting()
-            return
         if not self.navigator_queue.empty():
             message = self.navigator_queue.get()
             logger.debug("Got navigator message: {}".format(message))
-            #@TODO handle finish message
-            self.approaching = False
-            self.turning = False
-            self.at_checkpoint = True
-        if self.turning:
-            logger.debug("turning {}".format(self.action_time_steps))
-            self.turning = self.check_if_continue_action()
-            if self.turning:
-                # @TODO make it not to calculate this thing every time but
-                # make it calculated once and then repeated as action
-                #
-                logger.debug("turning more")
-                if self.how_to_turn is None:
-                     self.how_to_turn = calculate_desired_angle(current_pose2D, destination2D)
-                self.turn(self.how_to_turn)
-            else:
-                self.resting = True
-                self.how_to_turn = None
-                self.action_time_steps = 15
-            return
-        if self.approaching:
-            logger.debug("approaching")
-            self.approaching = self.check_if_continue_action()
-            if self.approaching:
-                self.go_straight()
-            else:
-                self.resting = True
-                self.action_time_steps = 7
-            return
+            #@TODO turn off after one tick
+            self.states['at_checkpoint'] = True
+
         if current_pose2D is not None:
             oriented = self.check_orientation(current_pose2D, destination2D)
             if oriented:
-                self.approaching = True
+                self.states['approaching'] = True
+                logger.debug("Approaching: {}".format(self.a_t))
             else:
-                self.turning = True
-            self.action_time_steps = 7
-        else:
-            if self.check_if_continue_action():
-                self.no_pose_counter = 0
-                self.try_orient()
-                self.resting = True
+                desired_angle = calculate_desired_angle(current_pose2D, destination2D)
+                turning_type = 'turning_left' if desired_angle <= 0 else 'turning_right'
+                self.states[turning_type] = True
+                logger.debug("Turning {}: {}".format(turning_type, self.a_t))
 
-    def try_orient(self):
-        logger.debug("Orienting (Turning right)")
-        data = dict(left=self.base_speed, right=self.turning_motor_speed)
-        logger.debug(data)
-        self.tonic.steer_motors(data)
+
+    def do_steering(self, move_type):
+        data = {
+            'resting':
+            (
+                15,
+                dict(left=0, right=0)
+            ),
+            'turning_left':
+            (
+                7,
+                dict(left=self.base_speed, right=self.turning_motor_speed)
+            ),
+            'orienting':
+            (
+                7,
+                dict(left=self.base_speed, right=self.turning_motor_speed)
+            ),
+
+            'turning_right':
+            (
+                7,
+                dict(left=self.turning_motor_speed, right=self.base_speed)
+            ),
+            'approaching':
+            (
+                7,
+                dict(left=15, right=15)
+            ),
+        }[move_type]
+        self.a_t = data[0]
+        steering_data = data[1]
+        self.current_steering_data = data[1]
+        self.current_move_type = move_type
+        if steering_data is not None:
+            self.tonic.steer_motors(steering_data)
+
+    def do_action(self):
+        time.sleep(0.05)
+        if self.a_t > 0:
+            self.a_t -= 1
+            logger.debug("Doing {} == {} T={}".format(self.current_move_type, self.current_steering_data, self.a_t))
+            self.tonic.steer_motors(self.current_steering_data)
+        else:
+            moving_dict = {k:self.states[k] for k in self.moving_keys}
+            assert sum(moving_dict.values()) == 1, str(moving_dict)
+            for k in self.moving_keys:
+                if self.states[k]:
+                    self.do_steering(k)
+
+
+    def drive(self, current_pose2D, destination2D):
+        time.sleep(0.05)
+        self.assign_state(current_pose2D, destination2D)
+        self.do_action()

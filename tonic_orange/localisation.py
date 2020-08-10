@@ -3,6 +3,7 @@ import logging
 from tonic import Tonic
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class Localisator:
     def __init__(self, tonic: Tonic, vocab_path, settings_path):
@@ -25,8 +26,8 @@ class Localisator:
     def localise(self, data):
         img, ts = data
         data = self.tonic.image_now()
-        if self.prevtime is not None:
-                print(ts, self.prevtime, ts-self.prevtime)
+        # if self.prevtime is not None:
+                # print(ts, self.prevtime, ts-self.prevtime)
         self.slam.process_image_mono(img, ts)
         pose = self.slam.get_current_pose()
         self.prevtime = ts

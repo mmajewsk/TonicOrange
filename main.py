@@ -30,7 +30,7 @@ if __name__=="__main__":
     images_path = "/home/mwm/repositories/Tonic/data_intake4/27_07_2020_home_v0.02"
     checkpoints_file = '/home/mwm/repositories/TonicOrange/assets/checkpoints/checkpoints_home_27_07_2020v2.txt'
     osmap_path = '/home/mwm/repositories/TonicOrange/assets/maps/home_27_07_2020_map1c/initial_tests.yaml'
-    tonic_settings = '/home/mwm/repositories/Tonic/src/pc/mock_settings.yaml'
+    tonic_settings = '/home/mwm/repositories/Tonic/remote_control/settings_mock.yaml'
     "--start 250 --end 500"
     mock = False
     if mock:
