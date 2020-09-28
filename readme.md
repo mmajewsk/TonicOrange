@@ -142,3 +142,7 @@ Sort this mess out, and commit this later.
 
 The Tonic/pathfinder branch needs merge in the future, also needs to be hcecked
 out against the code on the device.
+
+### 12.08.2020
+
+It works perfectly, with the exception of the steering. Something is wrong, I need better visualisation online (preferably as 2d map )

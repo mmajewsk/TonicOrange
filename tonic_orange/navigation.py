@@ -3,6 +3,7 @@ from collections import deque
 import logging
 import time
 import numpy as np
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -20,13 +21,27 @@ class Navigator:
         self.finish = False
         self._signals = []
 
+
     @staticmethod
-    def from_filenames(checkpoints_filepath, orb_slam_map):
+    def from_txt(checkpoints_filepath, orb_slam_map):
         with open(checkpoints_filepath, 'r') as f:
             filenames_list = f.read().splitlines()
+        return Navigator.from_filenames(filenames_list, orb_slam_map)
+
+    @staticmethod
+    def from_dir(checkpoints_folder, orb_slam_map):
+        """
+        It only uses sorted checkpoints
+        """
+        filenames_list = sorted(os.listdir(checkpoints_folder))
+        return Navigator.from_filenames(filenames_list, orb_slam_map)
+
+    @staticmethod
+    def from_filenames(filenames_list, orb_slam_map):
         with open(orb_slam_map.map_path/'assoc.json','r') as f:
             assoc_dict = json.load(f)
-        assoc_filenames = {filename:id for id, timestamp, filename in assoc_dict['keyframes']}
+        assoc_keyframes = filter(lambda x: isinstance(x, list), assoc_dict['keyframes'])
+        assoc_filenames = {filename:id for id, timestamp, filename in assoc_keyframes}
         for checkpoint_filename in filenames_list:
             if checkpoint_filename not in assoc_filenames:
                 raise ValueError("checkpoint_filename {} was not found in keyframes".format(checkpoint_filename))

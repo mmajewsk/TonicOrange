@@ -27,11 +27,11 @@ import timeit
 if __name__=="__main__":
     vocab_path = "/home/mwm/repositories/slam_dunk/builds/data/ORBvoc.txt"
     settings_path = "/home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml" #"./assets/settings/TUM-MINE-wide.yaml "
-    images_path = "/home/mwm/repositories/Tonic/data_intake4/27_07_2020_home_v0.02"
-    checkpoints_file = '/home/mwm/repositories/TonicOrange/assets/checkpoints/checkpoints_home_27_07_2020v2.txt'
-    osmap_path = '/home/mwm/repositories/TonicOrange/assets/maps/home_27_07_2020_map1c/initial_tests.yaml'
-    tonic_settings = '/home/mwm/repositories/Tonic/remote_control/settings_mock.yaml'
-    "--start 250 --end 500"
+    images_path = "/home/mwm/repositories/TonicData/12_08_2020_home_v1.0"
+    #checkpoints_file = '/home/mwm/repositories/TonicOrange/assets/checkpoints/checkpoints_home_27_07_2020v2.txt'
+    checkpoints_dir = '/home/mwm/repositories/TonicOrange/assets/checkpoints/checkpoints_im_12_08_2020_v1.0'
+    osmap_path = '/home/mwm/repositories/TonicOrange/assets/maps/home_12_08_2020_map_1.0/initial_tests.yaml'
+    tonic_settings = '/home/mwm/repositories/Tonic/remote_control/settings.yaml'
     mock = False
     if mock:
         tonic = TonicMock(images_path,start=210)
@@ -47,7 +47,8 @@ if __name__=="__main__":
     my_osmap = OsmapData.from_map_path(osmap_path)
     # this below is needed to calculate the 2D surface
     transformator = Transform3Dto2D(my_osmap)
-    navigator = Navigator.from_filenames(checkpoints_file, orb_slam_map=my_osmap)
+    # navigator = Navigator.from_txt(checkpoints_file, orb_slam_map=my_osmap)
+    navigator = Navigator.from_dir(checkpoints_dir, orb_slam_map=my_osmap)
     navigator.set_smart_threshold(0.05)
     localisator = Localisator(tonic=tonic, vocab_path=vocab_path,settings_path=settings_path)
     logger.debug("initialising localisator")

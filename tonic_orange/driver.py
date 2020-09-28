@@ -53,8 +53,9 @@ class DriverDumb:
         self.action_time_steps = 0
         self.navigator_queue = Queue()
         self.how_to_turn = None
-        self.turning_motor_speed = 20
+        self.turning_motor_speed = 17
         self.no_pose_counter = 0
+        self.now_resting = True
         self.current_steering_data = None
         self.current_move_type = None
         self.a_t = 0
@@ -78,10 +79,20 @@ class DriverDumb:
 
     def assign_state(self, current_pose2D, destination2D):
         self.reset_states()
+        logger.debug("a_t {}".format(self.a_t))
+        if self.a_t == 0:
+            if self.now_resting:
+                logger.debug("Now rest")
+                self.now_resting = False
+                self.states['resting'] = True
+                return
+            else:
+                self.now_resting = True
+
         if current_pose2D is None:
             logger.debug("No pose!!!")
-            self.states['no_pose'] = True
             self.states['orienting'] = True
+            self.states['resting'] = False
 
         if not self.navigator_queue.empty():
             message = self.navigator_queue.get()
@@ -96,7 +107,7 @@ class DriverDumb:
                 logger.debug("Approaching: {}".format(self.a_t))
             else:
                 desired_angle = calculate_desired_angle(current_pose2D, destination2D)
-                turning_type = 'turning_left' if desired_angle <= 0 else 'turning_right'
+                turning_type = 'turning_left' if desired_angle >= 0 else 'turning_right'
                 self.states[turning_type] = True
                 logger.debug("Turning {}: {}".format(turning_type, self.a_t))
 
@@ -105,28 +116,28 @@ class DriverDumb:
         data = {
             'resting':
             (
-                15,
+                25,
                 dict(left=0, right=0)
             ),
             'turning_left':
             (
-                7,
+                4,
                 dict(left=self.base_speed, right=self.turning_motor_speed)
             ),
             'orienting':
             (
-                7,
+                4,
                 dict(left=self.base_speed, right=self.turning_motor_speed)
             ),
 
             'turning_right':
             (
-                7,
+                4,
                 dict(left=self.turning_motor_speed, right=self.base_speed)
             ),
             'approaching':
             (
-                7,
+                4,
                 dict(left=15, right=15)
             ),
         }[move_type]
