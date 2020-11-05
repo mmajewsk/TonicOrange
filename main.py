@@ -8,11 +8,11 @@ from matplotlib import pyplot as plt
 from tonic import Tonic
 import numpy as np
 from common.slam_map import OsmapData
-from tonic_orange.mocks import TonicMock, DriverMock
-from tonic_orange.navigation import Navigator
-from tonic_orange.localisation import Localisator
-from tonic_orange.driver import DriverDumb
-from tonic_orange.vis import Visualisation
+from tonic_autonomous.mocks import TonicMock, DriverMock
+from tonic_autonomous.navigation import Navigator
+from tonic_autonomous.localisation import Localisator
+from tonic_autonomous.driver import DriverDumb
+from tonic_autonomous.vis import Visualisation
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -37,11 +37,11 @@ if __name__ == "__main__":
     settings_path = "/home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml"  # "./assets/settings/TUM-MINE-wide.yaml "
     images_path = "/home/mwm/repositories/TonicData/05"
 
-    # checkpoints_file = '/home/mwm/repositories/TonicOrange/assets/checkpoints/checkpoints_home_27_07_2020v2.txt'
+    # checkpoints_file = "/home/mwm/repositories/TonicAutonomous/assets/checkpoints/checkpoints_home_27_07_2020v2.txt"
     checkpoints_dir = (
-        "/home/mwm/repositories/TonicOrange/assets/checkpoints/05_22_2020_chosen/"
+        "/home/mwm/repositories/TonicAutonomous/assets/checkpoints/05_22_2020_chosen/"
     )
-    osmap_path = "/home/mwm/repositories/TonicOrange/assets/maps/home_05_11_2020_map3/initial_tests.yaml"
+    osmap_path = "/home/mwm/repositories/TonicAutonomous/assets/maps/home_05_11_2020_map3/initial_tests.yaml"
     # tonic_settings = "/home/mwm/repositories/Tonic/remote_control/settings.yaml"
     tonic_settings = "/home/mwm/repositories/Tonic/remote_control/settings.yaml"
     mock = False

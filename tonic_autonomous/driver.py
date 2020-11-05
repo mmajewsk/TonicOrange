@@ -140,20 +140,20 @@ class DriverDumb:
 
     def do_steering(self, move_type):
         data = {
-            "resting": (25, dict(left=0, right=0)),
+            "resting": (10, dict(left=0, right=0)),
             "turning_left": (
-                4,
+                5,
                 dict(left=self.base_speed, right=self.turning_motor_speed),
             ),
             "orienting": (
-                4,
+                5,
                 dict(left=self.base_speed, right=self.turning_motor_speed),
             ),
             "turning_right": (
-                4,
+                5,
                 dict(left=self.turning_motor_speed, right=self.base_speed),
             ),
-            "approaching": (4, dict(left=15, right=15)),
+            "approaching": (8, dict(left=15, right=15)),
         }[move_type]
         self.a_t = data[0]
         steering_data = data[1]

@@ -1,153 +1,82 @@
-This repository contains scripts and source code used to create map with [ORB_SLAM2](https://github.com/mmajewsk/ORB_SLAM2), [osmap](https://github.com/mmajewsk/osmap), [ORB_SLAM2](https://github.com/mmajewsk/ORB_SLAM2-PythonBindings).
-Im using my [Tonic](https://github.com/mmajewsk/Tonic) project to acquire images and data, and then I can process it 
-to be able to create map of the environment and also to localise in that map.
-
-
-## Dependencies
-
-Those scripts are dependant on some custom versions of some libraries.
-You should use this repo [TonicSlamDunk](https://github.com/mmajewsk/TonicSlamDunk) to install them.
-
-You can use:
- - **install.sh** - for ubuntu (should be ok on 16.04 and 18.04)
- - or you can use **docker** image that i have prepared [mwmajewsk/tonic_slam_dunk](https://hub.docker.com/repository/docker/mwmajewsk/tonic_slam_dunk).
- 
-## basic_usage.py
+# TonicAutonomous.
 
 ![](https://imgur.com/oA3ERWN.gif)
 
-This script can: 
- - create new ORB_SLAM2 map from images and write it to file
- - read ORB_SLAM2 map from file and extend it with additional data from new set of images, and then save it to file
+This repository contains a code for navigation and autonomous driving of the [Tonic](https://github.com/mmajewsk/Tonic) project.
 
-Parameters:
-- **vocab_path** this vocabulary file needed by OrbSlam2
-- **settings_path**  - this is settings file needed by the OrbSlam2. 
-The file contains settings for the camera and its callibration.
-- **images_path** - path to folder with images
-- **save_name** - where to save the map
+## Step by step
+So how to use this. This repository was written in extensibility in mind. Altough this guide gets you through the process, the repository was designed for you to use it however you like it, by using the code itself.
 
+### Setup 
+I'm assuming that you have built, installed and properly configured [Tonic](https://github.com/mmajewsk/Tonic).
+Also, you will need to also install this dependencie using [absolutely unholy abomination of a script](https://github.com/mmajewsk/TonicSlamDunk) ``./install.sh` - should be ok on 16.04 and 18.04.
+Or use a docker (also described in that repo) [mwmajewsk/tonic_slam_dunk](https://hub.docker.com/repository/docker/mwmajewsk/tonic_slam_dunk).
 
-This script will save the map created by OrbSlam2 using protobuff file. 
+Then before you start messing around with this repo, you should drive your Tonic car around, and record the video data.
 
 ```
-Usage: ./orbslam_mono_tum path_to_vocabulary path_to_settings path_to_sequence
-
-positional arguments:
-  vocab_path            A path to voabulary file from orbslam. E.g:
-                        ORB_SLAM/Vocabulary/ORBvoc.txt
-  settings_path         A path to configurational file, E.g: TUM.yaml
-  images_path           Path to the folder with images
-  save_name             a path name to save map to
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --frame_start FRAME_START
-                        Number of starting frame
-
+python run.py -v -s --dump_video ~/path/to/video/dump
 ```
 
-## live_coords.py
-@TODO
+After that, you can go to the TonicAutonomous directory. Activate the conda environment that contains TonicSlamDunk installation (or use docker).
 
-## direction_finding.py
-@TODO
-
-## Developer journal
-
-###26.01.2020
-
-I need to add osmap for python to be generated.
-Tt seems that I have lost changes done to the libraries.
-One thing that i need to get back is get_keyframe_list, that returns dict of mnid and timestamp
-Brought up an issue here:
-https://github.com/AlejandroSilvestri/osmap/issues/15
-Osmap messes up path management.
-
-
-### 03.06.2020
-So i created a mock for video streeming, I remember having problems with using both path finding andstreaming.
-
-### 22.06.2020
-
-Scripts are running as they should. lets see again where's the problem.
-So i added an possiblity of writing a log to direction finding.
-
-### 30.06.2020
-
-I added a DumbDriver in `direction_finding.py` Its not finished, todos in method
-`direction_finding.py:238`. Do them.
-
-### 09.07.2020
-\
-Use 
+### 1. Run a script that creates required rgb.txt file in the data dump
 ```
-sudo lsof -i:8080
+(SlamDunkEnv2) python tools.py ~/path/to/video/dump
 ```
 
-To find busy port
-test in hackerspace
-the batteries seems to be ok
-trying to record some paths in hardroom
+### 2. Create a map using map\_creator.py
 
-First run Tonic/src/pc:
+First try out the dataset:
 
 ```
-python run.py -v -s --dump_video ~/repositories/Tonic/data_intake4/09_07_2020_hackerspace_v0.01
+(SlamDunkEnv2) python map_creator.py /path_to/vocabulary_file/slam_dunk/builds/data/ORBvoc.txt /path_to/camera_calibration/os2py_applied/TUM-MINE-wide.yaml /path/to/video/dump
 ```
 
-to take data, then create rgb file with
+There are some options that you can use, you can change beginning and end of the images used for the map.
+You can use them in reverse, or even save and load the map.
+You can read data from one set of pictures, save the map, then read it with other set of pictures, improving your map. The possibilities are limitless :D 
+Use options of the script to your advantage. When you are satisfied with the setup, dump the map using `--save_map`.
+
+### 3. Use generated map to set up checkpoints
+
+Checkpoints are points on the map that you want your car to go through.
+The easiest way to use them is to first filter the images to look for those that can be used as checkpoints.
 
 ```
-python tools.py ~/repositories/Tonic/data_intake4/09_07_2020_hackerspace_v0.01/
+(SlamDunkEnv2) python filter_checkpoints.py  ~/path/to/map_dump/assoc.json ~/path/to/video/dump ~/path/to/filtered/checkpoints_filtered
 ```
 
+Now choose images of the places that you want your car to get to.
+From this point you have two options.
 
-```python basic_usage.py /home/mwm/repositories/slam_dunk/builds/data/ORBvoc.txt /home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml /home/mwm/repositories/Tonic/data_intake4/17_07_2020_hackerspace_v0.01/```
-then use the algorithm to create map
+Either you write the names of the images in a text file (the car will be navigated through them in the order they) like this:
 
-### 17.07.2020
+```
+frame00110_1604587599.312472.jpg
+frame00145_1604587601.440924.jpg
+frame00211_1604587605.4512722.jpg
+```
 
-After the battery change, and added battery monitor, I will try to run
-everything again. 
+Or you create additional folder `chosen_checkpoints/` and put selected images there.
 
-`python basic_usage.py /home/mwm/repositories/slam_dunk/builds/data/ORBvoc.txt /home/mwm/repositories/os2py_applied/TUM-MINE-wide.yaml /home/mwm/repositories/Tonic/data_intake4/17_07_2020_hackerspace_v0.03/ --start 250 --end 400 `
+### 4. Run main.py
+
+As this is work still in progress, for now you have edit the code of `main.py` in order to point all of the necessary paths into the right places. 
+You will have to run two processes simultaenously on the car itself (i recommend using tmux).
+
+```
+python video_streaming.py
+```
+
+```
+python3 steering_motors.py
+```
+
+Then simply run `(SlamDunkEnv2) python main.py`
 
 
-doing stuff at home:
-
-So there is aproblem with steering it seems stuck or doeasnt go in "rest" state
-(no speed) at all.
-
-### 19.07.2020
-
-For whatever the reason, the image in she slam is not getting there fast enough.
-This might be due to the way that it ic received, or slowness of the SLAM.
-
-### 23.07.2020
-
-Attempting to profile this problem with mock.
-
-### 24.07.2020
-
-All the profilers are failing me, because of the exit bug.
-So the get_current_pose is the choke-point.
-    I think it's beacuse of the conversion to opencv mat.
-Ok it is not. Thats a mess.
-I need to compare basic usage wiht path finder.
-Problem solved, mainly those were mine sleeps (usleep in python wrapper!).
-Sort this mess out, and commit this later.
-
-### 26.07.2020
-
-The Tonic/pathfinder branch needs merge in the future, also needs to be hcecked
-out against the code on the device.
-
-### 12.08.2020
-
-It works perfectly, with the exception of the steering. Something is wrong, I need better visualisation online (preferably as 2d map )
-
-### 06.10.2020
+## Further reading
 
 graph theory books
 http://www.maths.lse.ac.uk/Personal/jozef/LTCC/Graph_Theory_Bondy_Murty.pdf
@@ -158,10 +87,3 @@ https://www.researchgate.net/publication/339228370_Hypergraphs_an_introduction_a
 
 slam tutorial
 http://www2.informatik.uni-freiburg.de/~stachnis/pdf/grisetti10titsmag.pdf
-
-### 24.10.2020
-
-
-```
-python filter_checkpoints.py  /home/mwm/repositories/TonicOrange/assets/maps/home_24_10_2020_map_0.2_1 /home/mwm/repositories/TonicData/24_10_2020_home_v0.2 /home/mwm/repositories/TonicOrange/assets/checkpoints/24_10_2020
-```

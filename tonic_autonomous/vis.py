@@ -1,4 +1,4 @@
-from tonic_orange.navigation import Navigator
+from tonic_autonomous.navigation import Navigator
 import numpy as np
 from common.pose import destination_to_angle
 import cv2
