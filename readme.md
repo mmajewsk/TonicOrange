@@ -146,3 +146,22 @@ out against the code on the device.
 ### 12.08.2020
 
 It works perfectly, with the exception of the steering. Something is wrong, I need better visualisation online (preferably as 2d map )
+
+### 06.10.2020
+
+graph theory books
+http://www.maths.lse.ac.uk/Personal/jozef/LTCC/Graph_Theory_Bondy_Murty.pdf
+http://www.esi2.us.es/~mbilbao/pdffiles/DiestelGT.pdf
+
+hypergraph
+https://www.researchgate.net/publication/339228370_Hypergraphs_an_introduction_and_review
+
+slam tutorial
+http://www2.informatik.uni-freiburg.de/~stachnis/pdf/grisetti10titsmag.pdf
+
+### 24.10.2020
+
+
+```
+python filter_checkpoints.py  /home/mwm/repositories/TonicOrange/assets/maps/home_24_10_2020_map_0.2_1 /home/mwm/repositories/TonicData/24_10_2020_home_v0.2 /home/mwm/repositories/TonicOrange/assets/checkpoints/24_10_2020
+```

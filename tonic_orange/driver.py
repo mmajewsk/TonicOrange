@@ -1,29 +1,29 @@
-
 from tonic import Tonic
 from queue import Queue
 import numpy as np
 from simple_pid import PID
 import time
 import logging
-from common.pose import calculate_desired_angle
+from common.pose import destination_to_angle
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+
 class Driver:
     def __init__(self, tonic: Tonic):
         self.tonic = tonic
-        self.pid = PID(5,1.0,1.0,setpoint=0)
-        self.pid.output_limits = [0,5]
+        self.pid = PID(5, 1.0, 1.0, setpoint=0)
+        self.pid.output_limits = [0, 5]
         self.base_speed = 12
         self.navigator_queue = Queue()
 
     def calculate_steering(self, current_pose2D, destination2D):
-        desired_angle = calculate_desired_angle(current_pose2D, destination2D)
+        desired_angle = destination_to_angle(current_pose2D[0], destination2D[0])
         (x1, y1), phi1 = current_pose2D
         (x2, y2), phi2 = destination2D
         phi1_d = phi1 + np.pi
-        output = self.pid(desired_angle-phi1_d)
+        output = self.pid(desired_angle - phi1_d)
         return output
 
     def steer(self, output):
@@ -43,6 +43,7 @@ class Driver:
     def try_orient(self):
         pass
 
+
 class DriverDumb:
     def __init__(self, tonic: Tonic):
         self.tonic = tonic
@@ -59,16 +60,28 @@ class DriverDumb:
         self.current_steering_data = None
         self.current_move_type = None
         self.a_t = 0
-        self.moving_keys = ['orienting', 'approaching', 'turning_left',  'turning_right', 'resting']
-        self.non_moving_keys = ['no_pose', ' at_checkpoint']
+        self.last_action_time = time.perf_counter()
+        self.last_drive_time = time.perf_counter()
+        self.moving_keys = [
+            "orienting",
+            "approaching",
+            "turning_left",
+            "turning_right",
+            "resting",
+        ]
+        self.non_moving_keys = ["no_pose", " at_checkpoint"]
         self.states = {}
-        for k in self.moving_keys+self.non_moving_keys:
+        for k in self.moving_keys + self.non_moving_keys:
             self.states[k] = False
 
     def check_orientation(self, current_pose2D, destination2D):
-        desired_angle = calculate_desired_angle(current_pose2D, destination2D)
-        direction_error_marigin = 15
-        if abs(desired_angle) < np.deg2rad(direction_error_marigin):
+        desired_angle = destination_to_angle(current_pose2D[0], destination2D[0])
+        current_angle = destination_to_angle(
+            current_pose2D[0], current_pose2D[1], flip=True
+        )
+        # arguments are reversed (y, x)
+        direction_error_marigin = 25
+        if abs(desired_angle - current_angle) < np.deg2rad(direction_error_marigin):
             return True
         else:
             return False
@@ -84,62 +97,63 @@ class DriverDumb:
             if self.now_resting:
                 logger.debug("Now rest")
                 self.now_resting = False
-                self.states['resting'] = True
+                self.states["resting"] = True
                 return
             else:
                 self.now_resting = True
 
         if current_pose2D is None:
             logger.debug("No pose!!!")
-            self.states['orienting'] = True
-            self.states['resting'] = False
+            self.states["orienting"] = True
+            self.states["resting"] = False
 
         if not self.navigator_queue.empty():
             message = self.navigator_queue.get()
             logger.debug("Got navigator message: {}".format(message))
-            #@TODO turn off after one tick
-            self.states['at_checkpoint'] = True
+            # @TODO turn off after one tick
+            self.states["at_checkpoint"] = True
 
         if current_pose2D is not None:
             oriented = self.check_orientation(current_pose2D, destination2D)
             if oriented:
-                self.states['approaching'] = True
+                self.states["approaching"] = True
                 logger.debug("Approaching: {}".format(self.a_t))
             else:
-                desired_angle = calculate_desired_angle(current_pose2D, destination2D)
-                turning_type = 'turning_left' if desired_angle >= 0 else 'turning_right'
+                desired_angle = destination_to_angle(
+                    current_pose2D[0], destination2D[0], flip=True
+                )
+                current_angle = destination_to_angle(
+                    current_pose2D[0], current_pose2D[1]
+                )
+                diff = current_angle - desired_angle
+                turning_type = "turning_left" if diff >= 0 else "turning_right"
                 self.states[turning_type] = True
-                logger.debug("Turning {}: {}".format(turning_type, self.a_t))
-
+                logger.debug(
+                    "Desired {}, Current {}, Diff {} Turning {}: {}".format(
+                        np.rad2deg(desired_angle),
+                        np.rad2deg(current_angle),
+                        np.rad2deg(diff),
+                        turning_type,
+                        self.a_t,
+                    )
+                )
 
     def do_steering(self, move_type):
         data = {
-            'resting':
-            (
-                25,
-                dict(left=0, right=0)
-            ),
-            'turning_left':
-            (
+            "resting": (25, dict(left=0, right=0)),
+            "turning_left": (
                 4,
-                dict(left=self.base_speed, right=self.turning_motor_speed)
+                dict(left=self.base_speed, right=self.turning_motor_speed),
             ),
-            'orienting':
-            (
+            "orienting": (
                 4,
-                dict(left=self.base_speed, right=self.turning_motor_speed)
+                dict(left=self.base_speed, right=self.turning_motor_speed),
             ),
-
-            'turning_right':
-            (
+            "turning_right": (
                 4,
-                dict(left=self.turning_motor_speed, right=self.base_speed)
+                dict(left=self.turning_motor_speed, right=self.base_speed),
             ),
-            'approaching':
-            (
-                4,
-                dict(left=15, right=15)
-            ),
+            "approaching": (4, dict(left=15, right=15)),
         }[move_type]
         self.a_t = data[0]
         steering_data = data[1]
@@ -149,20 +163,31 @@ class DriverDumb:
             self.tonic.steer_motors(steering_data)
 
     def do_action(self):
-        time.sleep(0.05)
+        # time.sleep(0.05)
+        if time.perf_counter() - self.last_action_time < 0.05:
+            return
+        else:
+            self.last_action_time = time.perf_counter()
         if self.a_t > 0:
             self.a_t -= 1
-            logger.debug("Doing {} == {} T={}".format(self.current_move_type, self.current_steering_data, self.a_t))
+            logger.debug(
+                "Doing {} == {} T={}".format(
+                    self.current_move_type, self.current_steering_data, self.a_t
+                )
+            )
             self.tonic.steer_motors(self.current_steering_data)
         else:
-            moving_dict = {k:self.states[k] for k in self.moving_keys}
+            moving_dict = {k: self.states[k] for k in self.moving_keys}
             assert sum(moving_dict.values()) == 1, str(moving_dict)
             for k in self.moving_keys:
                 if self.states[k]:
                     self.do_steering(k)
 
-
     def drive(self, current_pose2D, destination2D):
-        time.sleep(0.05)
+        # time.sleep(0.05)
+        if time.perf_counter() - self.last_drive_time < 0.05:
+            return
+        else:
+            self.last_drive_time = time.perf_counter()
         self.assign_state(current_pose2D, destination2D)
         self.do_action()
